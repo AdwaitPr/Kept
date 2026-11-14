@@ -181,6 +181,7 @@ export interface CommitmentStoreState {
   getOverdue: (now?: number) => Commitment[];
   getToday: (now?: number) => Commitment[];
   getUpcoming: (now?: number) => Commitment[];
+  getReviewQueue: (now?: number) => Commitment[];
   getHistory: () => Commitment[];
   getRecentRecipients: (prefix?: string, limit?: number) => string[];
 
@@ -452,6 +453,20 @@ export const useCommitmentStore = create<CommitmentStoreState>()((set, get) => (
           !c.isArchived &&
           !c.isDeleted &&
           isUpcoming(c.currentDueTimestamp, referenceTime)
+      )
+      .sort((a, b) => a.currentDueTimestamp - b.currentDueTimestamp);
+  },
+
+  getReviewQueue: (now?: number): Commitment[] => {
+    const referenceTime = now ?? Date.now();
+    const endOfDay = getEndOfDayMillis(referenceTime);
+    return get()
+      .commitments.filter(
+        (c) =>
+          isActiveStatus(c.status) &&
+          !c.isArchived &&
+          !c.isDeleted &&
+          c.currentDueTimestamp <= endOfDay
       )
       .sort((a, b) => a.currentDueTimestamp - b.currentDueTimestamp);
   },

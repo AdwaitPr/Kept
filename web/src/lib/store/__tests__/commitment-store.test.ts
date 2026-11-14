@@ -381,6 +381,11 @@ describe('Commitment Store & State Management', () => {
       expect(upcoming.map((c) => c.id)).toEqual(['c-upcoming-1', 'c-upcoming-2']);
     });
 
+    it('getReviewQueue returns active commitments due today or earlier sorted ascending', () => {
+      const queue = useCommitmentStore.getState().getReviewQueue(fixedNow);
+      expect(queue.map((c) => c.id)).toEqual(['c-overdue-1', 'c-overdue-2', 'c-today-1', 'c-today-2']);
+    });
+
     it('getHistory returns resolved commitments ordered by closedAt descending', () => {
       const history = useCommitmentStore.getState().getHistory();
       expect(history.map((c) => c.id)).toEqual(['c-history-released', 'c-history-kept']);
