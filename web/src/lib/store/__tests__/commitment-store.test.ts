@@ -140,7 +140,7 @@ describe('Commitment Store & State Management', () => {
       expect(record.createdAt).toBe(renegotiateTime);
     });
 
-    it('rejects renegotiation with error if revisedDue is not in the future relative to current due or now', () => {
+    it('rejects renegotiation with error if revisedDue is not strictly in the future relative to now', () => {
       const store = useCommitmentStore.getState();
       const item = store.addCommitment({
         recipientName: 'Diana',
@@ -148,10 +148,57 @@ describe('Commitment Store & State Management', () => {
         dueTimestamp: fixedNow + 100000,
       });
 
-      // Try setting revised due in the past relative to fixedNow and item.currentDueTimestamp
+      // Try setting revised due in the past relative to fixedNow
       expect(() => {
         store.renegotiate(item.id, fixedNow - 1000, 'Invalid past time', fixedNow);
-      }).toThrow();
+      }).toThrow('Revised due date must be in the future');
+
+      // Try setting revised due equal to now
+      expect(() => {
+        store.renegotiate(item.id, fixedNow, 'Invalid exact current time', fixedNow);
+      }).toThrow('Revised due date must be in the future');
+    });
+
+    it('rejects attempting to renegotiate an overdue commitment to a past timestamp', () => {
+      const store = useCommitmentStore.getState();
+      // Overdue commitment with past due timestamp
+      const overdueDue = fixedNow - 3600000; // 1 hour ago
+      const item = store.addCommitment({
+        recipientName: 'Diana Overdue',
+        title: 'Overdue task',
+        dueTimestamp: overdueDue,
+      });
+
+      // Attempt to renegotiate to another past timestamp (e.g., 30 minutes ago, which is > overdueDue but <= fixedNow)
+      const pastRevisedDue = fixedNow - 1800000;
+      expect(() => {
+        store.renegotiate(item.id, pastRevisedDue, 'Still in past', fixedNow);
+      }).toThrow('Revised due date must be in the future');
+    });
+
+    it('rejects attempting to renegotiate a closed commitment (KEPT or RELEASED)', () => {
+      const store = useCommitmentStore.getState();
+      const item1 = store.addCommitment({
+        recipientName: 'George Kept',
+        title: 'Kept commitment',
+        dueTimestamp: fixedNow + 50000,
+      });
+      store.markKept(item1.id, fixedNow);
+
+      expect(() => {
+        store.renegotiate(item1.id, fixedNow + 100000, 'Try renegotiating kept', fixedNow);
+      }).toThrow('Cannot renegotiate a closed commitment');
+
+      const item2 = store.addCommitment({
+        recipientName: 'Hannah Released',
+        title: 'Released commitment',
+        dueTimestamp: fixedNow + 50000,
+      });
+      store.markReleased(item2.id, fixedNow);
+
+      expect(() => {
+        store.renegotiate(item2.id, fixedNow + 100000, 'Try renegotiating released', fixedNow);
+      }).toThrow('Cannot renegotiate a closed commitment');
     });
 
     it('throws error when renegotiating a non-existent commitment', () => {

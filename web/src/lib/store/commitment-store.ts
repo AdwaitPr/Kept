@@ -332,8 +332,12 @@ export const useCommitmentStore = create<CommitmentStoreState>()((set, get) => (
       throw new Error('Commitment not found');
     }
 
-    // Validation: revised due date must be in the future relative to now or current due
-    if (revisedDueTimestamp <= now && revisedDueTimestamp <= commitment.currentDueTimestamp) {
+    if (!isActiveStatus(commitment.status)) {
+      throw new Error('Cannot renegotiate a closed commitment');
+    }
+
+    // Validation: revised due date must be strictly in the future relative to now
+    if (revisedDueTimestamp <= now) {
       throw new Error('Revised due date must be in the future');
     }
 
